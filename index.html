@@ -313,19 +313,15 @@ select option{background:#1b3a5c;color:#fff;}
 const canvas = document.getElementById("game");
 const ctx    = canvas.getContext("2d");
 
-/* CSS-pixel dimensions used by all game logic */
+/* Canvas always in CSS pixels — no DPR scaling (most reliable on mobile) */
 let cssW = innerWidth;
 let cssH = innerHeight;
 
 function resize(){
-  const dpr = window.devicePixelRatio || 1;
   cssW = innerWidth;
   cssH = innerHeight;
-  canvas.width  = Math.round(cssW * dpr);
-  canvas.height = Math.round(cssH * dpr);
-  canvas.style.width  = cssW + "px";
-  canvas.style.height = cssH + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas.width  = cssW;
+  canvas.height = cssH;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 }
@@ -367,14 +363,7 @@ function stripBlack(img, threshold){
 let beagleCanvas = null;
 let packCanvas   = null;
 
-beagleSprite.onload = () => {
-  beagleCanvas = stripBlack(beagleSprite, 8);
-  beagleReady  = true;
-};
-spritePack.onload = () => {
-  packCanvas = stripBlack(spritePack, 8);
-  packReady  = true;
-};
+/* Images decoded in startGame() via Promise.all for mobile reliability */
 
 /* =========================================================
    SPRITE DEFINITIONS
@@ -1108,7 +1097,7 @@ function checkBossHit(p, b){
 ========================================================= */
 
 function loop(){
-
+  try{
   ctx.clearRect(0, 0, cssW, cssH);
 
   /* Camera follows leading player */
@@ -1266,6 +1255,13 @@ function loop(){
   if(gameRunning){
     animationId = requestAnimationFrame(loop);
   }
+  }catch(e){
+    /* Show error on screen for mobile debugging */
+    ctx.fillStyle = "white";
+    ctx.font = "bold 18px Arial";
+    ctx.fillText("Error: " + e.message, 20, 60);
+    console.error("Loop error:", e);
+  }
 }
 
 /* =========================================================
@@ -1318,22 +1314,45 @@ function showMenu(){
 
 function startGame(){
 
-  level = parseInt(document.getElementById("levelMode").value) || 1;
-  score = 0;
-
+  level   = parseInt(document.getElementById("levelMode").value)  || 1;
+  score   = 0;
   lives   = parseInt(document.getElementById("livesMode").value);
   players = parseInt(document.getElementById("playersMode").value);
 
   document.getElementById("menu").style.display = "none";
-  hud.style.display = "block";
 
-  p1 = makePlayer(120);
-  p2 = makePlayer(180);
+  /* Show a loading indicator while images decode on mobile */
+  const loadingDiv = document.createElement("div");
+  loadingDiv.id = "mobileLoading";
+  loadingDiv.style.cssText =
+    "position:fixed;inset:0;z-index:40;background:#0d1b2a;" +
+    "color:white;font-family:Arial;font-size:24px;font-weight:bold;" +
+    "display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;";
+  loadingDiv.innerHTML = "<div>🐾</div><div>Loading...</div>";
+  document.body.appendChild(loadingDiv);
 
-  buildLevel(level);
+  /* Wait for both images to be fully decoded before starting */
+  Promise.all([
+    beagleSprite.decode ? beagleSprite.decode() : Promise.resolve(),
+    spritePack.decode   ? spritePack.decode()   : Promise.resolve(),
+  ]).catch(() => {}).then(() => {
 
-  gameRunning = true;
-  loop();
+    beagleCanvas = stripBlack(beagleSprite, 8);
+    packCanvas   = stripBlack(spritePack,   8);
+    beagleReady  = true;
+    packReady    = true;
+
+    loadingDiv.remove();
+    hud.style.display = "block";
+    resize(); /* ensure canvas is current size */
+
+    p1 = makePlayer(120);
+    p2 = makePlayer(180);
+
+    buildLevel(level);
+    gameRunning = true;
+    loop();
+  });
 }
 
 
