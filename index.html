@@ -313,12 +313,18 @@ select option{background:#1b3a5c;color:#fff;}
 const canvas = document.getElementById("game");
 const ctx    = canvas.getContext("2d");
 
+/* CSS-pixel dimensions used by all game logic */
+let cssW = innerWidth;
+let cssH = innerHeight;
+
 function resize(){
-  const dpr     = window.devicePixelRatio || 1;
-  canvas.width  = Math.round(innerWidth  * dpr);
-  canvas.height = Math.round(innerHeight * dpr);
-  canvas.style.width  = innerWidth  + "px";
-  canvas.style.height = innerHeight + "px";
+  const dpr = window.devicePixelRatio || 1;
+  cssW = innerWidth;
+  cssH = innerHeight;
+  canvas.width  = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width  = cssW + "px";
+  canvas.style.height = cssH + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
@@ -709,7 +715,7 @@ function drawPlayer(p){
 
 function buildLevel(lvl){
 
-  const groundY = canvas.height - 140;
+  const groundY = cssH - 140;
   worldWidth    = 3500 + lvl * 800;
 
   groundSegments = [];
@@ -998,7 +1004,7 @@ function updatePlayer(p, left, right, jump){
   updateAnim(p);
 
   /* Fell off the world */
-  if(p.y > canvas.height + 300) loseLife();
+  if(p.y > cssH + 300) loseLife();
 }
 
 /* =========================================================
@@ -1013,7 +1019,7 @@ function loseLife(){
     return;
   }
 
-  const gy = canvas.height - 140;
+  const gy = cssH - 140;
 
   p1.x = 120;  p1.y = gy - 200;  p1.vx = 0;  p1.vy = 0;
   p2.x = 180;  p2.y = gy - 200;  p2.vx = 0;  p2.vy = 0;
@@ -1103,11 +1109,11 @@ function checkBossHit(p, b){
 
 function loop(){
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, cssW, cssH);
 
   /* Camera follows leading player */
   const lead = players === 2 ? Math.max(p1.x, p2.x) : p1.x;
-  cameraX    = Math.round(Math.max(0, lead - canvas.width / 3));
+  cameraX    = Math.round(Math.max(0, lead - cssW / 3));
 
   /* HUD */
   const bossHint = (level === 5 && bossBird && !bossBird.dead)
@@ -1115,11 +1121,11 @@ function loop(){
   hud.innerHTML = `Level ${level}/5 | Score ${score} | Lives ${lives >= 9999 ? "∞" : lives}${bossHint}`;
 
   /* Sky gradient */
-  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  const sky = ctx.createLinearGradient(0, 0, 0, cssH);
   sky.addColorStop(0, "#bfe7ff");
   sky.addColorStop(1, "#f5fbff");
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, cssW, cssH);
 
   /* ── WORLD SPACE ── */
   ctx.save();
